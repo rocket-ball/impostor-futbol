@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Impostor Fútbol — Juego</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-color: #0d1a2d;
+      --card-color: #1a273b;
+      --text-color: #ffffff;
+      --primary-color: #4CAF50;
+      --secondary-color: #2e3a51;
+      --impostor-color: #3b1a1a;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Inter', sans-serif;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-weight: 900;
+      color: var(--primary-color);
+    }
+
+    .screen {
+      display: none;
+      max-width: 450px;
+      margin: auto;
+    }
+    .screen.active {
+      display: block;
+    }
+
+    .card {
+      background: var(--card-color);
+      padding: 25px;
+      border-radius: 16px;
+      margin-top: 25px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    input, button {
+      width: 100%;
+      padding: 16px;
+      margin-top: 15px;
+      border-radius: 12px;
+      border: none;
+      font-size: 17px;
+      box-sizing: border-box;
+    }
+
+    input {
+      background: var(--secondary-color);
+      color: var(--text-color);
+    }
+
+    button {
+      background: var(--primary-color);
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+        background: #66BB6A;
+    }
+
+    button.secondary {
+      background: var(--secondary-color);
+      color: var(--text-color);
+    }
+
+    .flip {
+      min-height: 220px;
+      background: var(--secondary-color);
+      padding: 40px 20px;
+      border-radius: 16px;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+      font-size: 24px;
+      font-weight: 700;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.5s ease;
+      color: white;
+    }
+
+    .flip.revealed {
+        background: var(--card-color);
+        animation: flip-reveal 0.4s ease-out;
+    }
+
+    .flip.impostor {
+        background: var(--impostor-color);
+    }
+
+    @keyframes flip-reveal {
+      0% { transform: scaleY(0); opacity: 0; }
+      100% { transform: scaleY(1); opacity: 1; }
+    }
+
+    .hidden { display: none; }
+
+    .player-count {
+        font-size: 14px;
+        color: #ccc;
+        margin-top: 10px;
+    }
+
+  </style>
+</head>
+<body>
+
+<h1>⚽ Impostor Fútbol</h1>
+
+<!-- PANTALLA 1 -->
+<section id="screen1" class="screen active">
+  <div class="card">
+    <p>¿Cuántos jugadores (3-20) sois?</p>
+    <input id="numPlayers" type="number" min="3" max="20" placeholder="Ej: 6" />
+    <button id="confirmPlayers">Confirmar</button>
+  </div>
+</section>
+
+<!-- PANTALLA 2 -->
+<section id="screen2" class="screen">
+  <div class="card">
+    <p>Introduce los nombres:</p>
+    <div id="namesContainer"></div>
+    <button id="startGame">Empezar partida</button>
+  </div>
+</section>
+
+<!-- PANTALLA 3 -->
+<section id="screen3" class="screen">
+  <div class="card">
+    <div id="flipCard" class="flip">
+        <span id="playerInstruction">Pulsa para ver tu rol</span>
+        <span id="playerCounter" class="player-count"></span>
+    </div>
+    <button id="btnNext" class="hidden">Siguiente jugador</button>
+  </div>
+</section>
+
+<!-- PANTALLA 4 -->
+<section id="screen4" class="screen">
+  <div class="card">
+    <h3 id="starter"></h3>
+    <p>Cuando se vote, pulsa:</p>
+    <button id="revealImpostor">Revelar impostor</button>
+
+    <p id="impostorName" class="hidden" style="font-size: 22px; font-weight: bold; text-align:center;"></p>
+
+    <button id="restartSame" class="secondary">Volver a jugar (mismos)</button>
+    <button id="restartNew" style="margin-top:10px;">Empezar de nuevo</button>
+  </div>
+</section>
+
+<script>
+/* ---------- LISTA DE FUTBOLISTAS (500 nombres reconocibles) ---------- */
+/* He combinado actuales, retirados y leyendas para máxima familiaridad. */
+const FUTBOLISTAS = [
+  // === LEYENDAS PRE-2010 (50) ===
+  "Pelé","Diego Maradona","Zinedine Zidane","Ronaldo Nazário","Ronaldinho",
+  "Thierry Henry","David Beckham","Paolo Maldini","Roberto Carlos","Cafu",
+  "Luis Figo","Rivaldo","Iker Casillas","Gianluigi Buffon","Raúl González",
+  "Carles Puyol","Xavi Hernández","Andrés Iniesta","Francesco Totti","Didier Drogba",
+  "Samuel Eto'o","Kaká","Ronald Koeman","Guti","Marcelo","Zlatan Ibrahimović",
+  "Robinho","Ronaldo (Fenómeno)","Rivaldo","Puyol",
+
+  // === ESTRELLAS POSTERIORES A 2010 (100) ===
+  "Lionel Messi","Cristiano Ronaldo","Neymar","Kylian Mbappé","Karim Benzema",
+  "Robert Lewandowski","Erling Haaland","Luka Modrić","Sergio Ramos",
+  "Toni Kroos","Marcelo","Dani Alves","Gerard Piqué","Virgil van Dijk",
+  "Luis Suárez","Antoine Griezmann","Vinícius Júnior","Rodrygo","Jude Bellingham",
+  "Pedri","Gavi","Frenkie de Jong","Ronald Araujo","Lamine Yamal",
+  "Fermín López","Federico Valverde","Eduardo Camavinga","Aurélien Tchouaméni",
+  "João Félix","Ansu Fati","Ousmane Dembélé","Achraf Hakimi","Riyad Mahrez",
+  "Mohamed Salah","Sadio Mané","Kevin De Bruyne","Phil Foden","Bernardo Silva",
+  "Bruno Fernandes","Paul Pogba","N'Golo Kanté","Raphaël Varane","Harry Kane",
+  "Marcus Rashford","Bukayo Saka","Jack Grealish","Declan Rice","Jadon Sancho",
+  "Trent Alexander-Arnold","Andrew Robertson","Manuel Neuer","Joshua Kimmich","Thomas Müller",
+  "Ilkay Gündogan","Marco Reus","Leroy Sané","Kai Havertz","Timo Werner",
+  "Alphonso Davies","Jamal Musiala","Matthijs de Ligt","Memphis Depay","Romelu Lukaku",
+  "Eden Hazard","Gianluigi Donnarumma","Federico Chiesa","Paulo Dybala","Lautaro Martínez",
+  "Ángel Di María","Sergio Agüero","James Rodríguez","Radamel Falcao","Juan Cuadrado",
+  "Luis Díaz","Enzo Fernández","Julián Álvarez","Rodrigo De Paul","Yerry Mina",
+  "Duván Zapata","Christian Pulisic","Son Heung-min","Takefusa Kubo","Khvicha Kvaratskhelia",
+  "Victor Osimhen","Alisson Becker","Thibaut Courtois","Jan Oblak","Marc-André ter Stegen",
+  "Fabián Ruiz","Marco Asensio","Iago Aspas","Álvaro Morata",
+  "Philippe Coutinho","Casemiro","Gabriel Jesus","Raphinha","Hugo Lloris"
+];
+
+/* ---------- UTILIDADES DE AZAR Y BARAJADO ---------- */
+
+/**
+ * Fisher–Yates shuffle (in-place) — devuelve el array barajado (nueva referencia).
+ * Usamos copia externa para no mutar la lista original.
+ */
+function shuffle(array) {
+  const a = array.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i];
+    a[i] = a[j];
+    a[j] = tmp;
+  }
+  return a;
+}
+
+/**
+ * Selección 'más aleatoria' usando shuffle + doble índice aleatorio.
+ * Devuelve un string (nombre de futbolista).
+ */
+function pickRandomWord() {
+  // barajamos (copia)
+  const shuffled = shuffle(FUTBOLISTAS);
+  // dos índices aleatorios sumados, módulo longitud
+  const r1 = Math.floor(Math.random() * shuffled.length);
+  const r2 = Math.floor(Math.random() * shuffled.length);
+  const idx = (r1 + r2 + Math.floor(Math.random()*shuffled.length)) % shuffled.length;
+  return shuffled[idx];
+}
+
+/* VARIABLES DEL JUEGO */
+let players = [];
+let savedPlayers = null;
+let current = 0;
+
+/* CAMBIAR PANTALLA */
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* CONFIRMAR JUGADORES */
+document.getElementById("confirmPlayers").onclick = () => {
+  const n = parseInt(document.getElementById("numPlayers").value);
+  if (!n || n < 3 || n > 20) return alert("Introduce un número válido (3-20).");
+
+  const container = document.getElementById("namesContainer");
+  container.innerHTML = "";
+
+  for (let i = 0; i < n; i++) {
+    container.innerHTML += `<input type="text" class="nameInput" placeholder="Jugador ${i+1}">`;
+  }
+
+  show("screen2");
+};
+
+/* EMPEZAR PARTIDA */
+document.getElementById("startGame").onclick = () => {
+  const names = [...document.querySelectorAll('.nameInput')]
+    .map(i => i.value.trim());
+
+  if (names.some(n => !n)) return alert("Rellena todos los nombres.");
+
+  players = names.map(n => ({ name: n }));
+  savedPlayers = players.map(p => ({ ...p })); // guardamos para 'mismos' jugadores
+
+  nuevaRonda();
+};
+
+/* GENERAR NUEVA RONDA */
+function nuevaRonda() {
+  // barajar el orden en que verán su rol
+  players = shuffle(players);
+
+  // reset roles
+  players.forEach(p => { p.impostor = false; p.word = null; });
+
+  // nuevo impostor
+  const imp = Math.floor(Math.random() * players.length);
+  players[imp].impostor = true;
+
+  // palabra compartida
+  const palabra = pickRandomWord();
+  players.forEach(p => { if (!p.impostor) p.word = palabra; });
+
+  // reiniciar control
+  current = 0;
+  updateCard();
+  show("screen3");
+}
+
+
+/* ACTUALIZAR TARJETA */
+function updateCard() {
+  const card = document.getElementById("flipCard");
+  card.className = "flip";
+  document.getElementById("btnNext").classList.add("hidden");
+  document.getElementById("playerInstruction").textContent =
+      `Jugador: ${players[current].name} (pulsa para ver)`;
+  document.getElementById("playerCounter").textContent =
+      `Jugador ${current+1} de ${players.length}`;
+}
+
+/* REVELAR ROL */
+document.getElementById("flipCard").onclick = () => {
+  const card = document.getElementById("flipCard");
+  if (card.classList.contains("revealed")) return;
+
+  const p = players[current];
+  document.getElementById("btnNext").classList.remove("hidden");
+  card.classList.add("revealed");
+
+  if (p.impostor) {
+    card.classList.add("impostor");
+    document.getElementById("playerInstruction").textContent = "¡ERES EL IMPOSTOR!";
+  } else {
+    document.getElementById("playerInstruction").textContent = "Palabra: " + p.word;
+    card.classList.remove("impostor");
+  }
+};
+
+/* SIGUIENTE JUGADOR */
+document.getElementById("btnNext").onclick = () => {
+  current++;
+  if (current >= players.length) {
+    const starter = players[Math.floor(Math.random()*players.length)].name;
+    document.getElementById("starter").textContent = "Empieza hablando: " + starter;
+    document.getElementById("impostorName").classList.add("hidden");
+    show("screen4");
+  } else {
+    updateCard();
+  }
+};
+
+/* REVELAR IMPOSTOR */
+document.getElementById("revealImpostor").onclick = () => {
+  const imp = players.find(p => p.impostor);
+  const box = document.getElementById("impostorName");
+  box.textContent = "El impostor era: " + (imp ? imp.name : "—");
+  box.classList.remove("hidden");
+};
+
+/* VOLVER A JUGAR (MISMOS) */
+document.getElementById("restartSame").onclick = () => {
+  if (!savedPlayers || savedPlayers.length === 0) { alert("No hay jugadores guardados."); show("screen1"); return; }
+  // restauramos los nombres y reiniciamos roles
+  players = savedPlayers.map(p => ({ name: p.name }));
+  nuevaRonda();
+};
+
+/* EMPEZAR DE NUEVO */
+document.getElementById("restartNew").onclick = () => {
+  savedPlayers = null;
+  players = [];
+  current = 0;
+  document.getElementById("namesContainer").innerHTML = "";
+  show("screen1");
+};
+</script>
+
+</body>
+</html>
